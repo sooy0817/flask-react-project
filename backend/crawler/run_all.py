@@ -1,28 +1,24 @@
-import subprocess
-import os
+from crawler.hana import main as hana_main
+from crawler.shjoongang import main as shjoongang_main
+from crawler.suhyup import main as suhyup_main
+from crawler.woori import main as woori_main
+from crawler.kb import main as kb_main
+from crawler.kb import wait_for_download_complete
 
 
-os.environ["PATH"] += os.pathsep + r"C:\Program Files\wkhtmltopdf\bin"
-# 현재 run_all.py의 위치 기준
-base_dir = os.path.abspath(os.path.dirname(__file__))
+def run_all_crawlers():
+    for script_name, fn in [
+        ("hana", hana_main),
+        ("shjoongang", shjoongang_main),
+        ("suhyup", suhyup_main),
+        ("woori", woori_main),
+        ("kb", kb_main),
+    ]:
+        try:
+            print(f"\u25b6 실행 중: {script_name}")
+            fn()
+        except Exception as e:
+            print(f"\u274c 실패: {script_name} \u2192 {e}")
 
-# 가상환경의 python 경로 (Windows 기준)
-venv_python = os.path.join(base_dir, "..", "venv", "Scripts", "python.exe")
-
-# 크롤링 스크립트 리스트
-scripts = [
-    "hana.py",
-    "shjoongang.py",
-    "suhyup.py",
-    "woori.py",
-    "kb.py",
-]
-
-# 실행
-for script in scripts:
-    script_path = os.path.join(base_dir, script)
-    print(f"📦📦📦 실행 중: {script}")
-    try:
-        subprocess.run([venv_python, script_path], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"오류 발생: {script} 실패 → {e}")
+if __name__ == "__main__":
+    run_all_crawlers()
