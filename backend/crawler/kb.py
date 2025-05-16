@@ -25,7 +25,9 @@ def main():
 
     base_dir = os.path.abspath(os.path.dirname(__file__))
     download_dir = os.path.join(base_dir, "kb_downloads")
+    pdf_dir = os.path.join(base_dir, "kb_pdfs")
     os.makedirs(download_dir, exist_ok=True)
+    os.makedirs(pdf_dir, exist_ok=True)
 
     conn = pymysql.connect(
         host="localhost",
@@ -82,6 +84,8 @@ def main():
             content_path = None
             has_successful_download = False
 
+
+
             attachment_links = driver.find_elements(By.CSS_SELECTOR, "dd.upfile li a")
             print(f"[INFO] 첨부파일 {len(attachment_links)}개 발견")
 
@@ -110,9 +114,15 @@ def main():
                     print(f"[INFO] 다운로드 성공: {public_url}")
 
                     if content_path is None:
-                        content_path = public_url
+                        # PDF 본문은 별도 폴더에 저장
+                        content_path = f"/files/kb_pdfs/{downloaded_file}"
+                        os.rename(
+                            os.path.join(download_dir, downloaded_file),
+                            os.path.join(pdf_dir, downloaded_file)
+                        )
+                    else:
+                        attachments.append((file_name, public_url))
 
-                    attachments.append((file_name, public_url))
                     has_successful_download = True
 
                 except UnexpectedAlertPresentException:

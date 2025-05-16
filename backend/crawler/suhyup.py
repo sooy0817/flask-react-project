@@ -115,7 +115,7 @@ def main():
             config = pdfkit.configuration(wkhtmltopdf=r"C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe")
             pdfkit.from_file(html_path, pdf_path, configuration=config)
 
-            # ✅ 웹에서 접근 가능한 경로로 변환하여 저장
+            # 웹에서 접근 가능한 경로로 변환하여 저장
             rel_pdf_path = f"/files/suhyup_pdfs/{pdf_filename}"
 
             sql = """

@@ -4,6 +4,9 @@ import shutil
 import pymysql
 import pdfkit
 import re
+import requests
+import pandas as pd
+from io import StringIO
 from datetime import datetime
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -17,27 +20,26 @@ def main():
     pdf_dir = os.path.join(base_dir, "hana_pdfs")
     html_dir = os.path.join(base_dir, "hana_html")
     attachment_dir = os.path.join(base_dir, "hana_attachment_downloads")
-    temp_download_dir = os.path.join(base_dir, "hana_temp_downloads")
     os.makedirs(pdf_dir, exist_ok=True)
     os.makedirs(html_dir, exist_ok=True)
     os.makedirs(attachment_dir, exist_ok=True)
-    os.makedirs(temp_download_dir, exist_ok=True)
 
+    # ✅ LangSmith 에러 방지용 (요약 관련 모듈 쓰는 경우 대비)
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+
+    # Selenium 셋업
     options = Options()
     options.add_argument("--headless=new")
-    prefs = {"download.default_directory": temp_download_dir}
-    options.add_experimental_option("prefs", prefs)
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
+    # DB 연결
     conn = pymysql.connect(
         host="localhost", user="root", password="@datasolution",
         db="bank", charset="utf8mb4"
     )
     cursor = conn.cursor()
 
-    # API 요청
-    import requests, pandas as pd
-    from io import StringIO
+    # 하나은행 검색 API 요청
     url = "https://www.kebhana.com/cont/search/json_api/search.jsp"
     data = {
         "query": "입찰", "collection": "etc_total",
@@ -51,7 +53,7 @@ def main():
         artid = item["ARTID"]
         cursor.execute("SELECT 1 FROM hana_items WHERE artid = %s", (artid,))
         if cursor.fetchone():
-            print(f"중복 artid: {artid}, 중단")
+            print(f"⛔ 중복 artid: {artid}, 중단")
             break
 
         title = re.sub(r"#keystart#(.*?)#keyend#", r"\1", item["TITLE"])
@@ -84,43 +86,45 @@ def main():
         pdfkit.from_file(html_path, pdf_path, configuration=config)
         public_pdf_path = f"/files/hana_pdfs/{pdf_name}"
 
-        # 📝 DB 저장
+        # ✅ DB 저장
         cursor.execute("""
             INSERT INTO hana_items (artid, title, date, content_path)
             VALUES (%s, %s, %s, %s)
         """, (artid, title, date_str, public_pdf_path))
 
-        # 📎 첨부파일 다운로드 (클릭 방식)
-        attachment_links = driver.find_elements(By.CSS_SELECTOR, "a.btnBox.pdf")
-        for link in attachment_links:
+        # 📎 첨부파일 다운로드 (href 직접 다운로드 방식)
+        attachment_elements = driver.find_elements(By.CSS_SELECTOR, "a.btnBox.pdf")
+        for link in attachment_elements:
             filename = link.text.strip()
-            print(f"📎 클릭다운로드: {filename}")
-            before = set(os.listdir(temp_download_dir))
-            link.click()
-            time.sleep(3)
-            after = set(os.listdir(temp_download_dir))
-            new_files = list(after - before)
-            if not new_files:
-                print(f"다운로드 실패: {filename}")
+            file_url = link.get_attribute("href")
+            if not file_url:
+                print(f"❌ URL 없음: {filename}")
                 continue
 
-            downloaded = new_files[0]
+            print(f"📎 직접 다운로드 시도: {filename} - {file_url}")
             safe_name = re.sub(r'[\\/*?:"<>|]', "_", filename)
-            src = os.path.join(temp_download_dir, downloaded)
-            dst = os.path.join(attachment_dir, safe_name + os.path.splitext(downloaded)[-1])
-            shutil.move(src, dst)
+            ext = os.path.splitext(file_url)[-1] or ".pdf"
+            dst = os.path.join(attachment_dir, safe_name + ext)
 
-            public_url = f"/files/hana_attachment_downloads/{os.path.basename(dst)}"
-            cursor.execute("""
-                INSERT IGNORE INTO hana_attachments (artid, file_name, file_url)
-                VALUES (%s, %s, %s)
-            """, (artid, filename, public_url))
+            try:
+                response = requests.get(file_url)
+                with open(dst, "wb") as f:
+                    f.write(response.content)
+
+                public_url = f"/files/hana_attachment_downloads/{os.path.basename(dst)}"
+                cursor.execute("""
+                    INSERT IGNORE INTO hana_attachments (artid, file_name, file_url)
+                    VALUES (%s, %s, %s)
+                """, (artid, filename, public_url))
+
+            except Exception as e:
+                print(f"❌ 다운로드 실패: {filename} - {e}")
 
     conn.commit()
     cursor.close()
     conn.close()
     driver.quit()
-    print("하나은행 크롤링 완료")
+    print("✅ 하나은행 크롤링 완료")
 
 if __name__ == "__main__":
     main()
