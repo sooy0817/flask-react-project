@@ -1,5 +1,4 @@
 import os
-import pymysql
 from transformers import AutoTokenizer
 from langchain_community.document_loaders import Docx2txtLoader, UnstructuredExcelLoader, PyPDFLoader
 from langchain_teddynote.document_loaders import HWPLoader

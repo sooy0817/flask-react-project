@@ -6,7 +6,6 @@ from langchain_ollama import OllamaLLM
 
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
-import pymysql
 import json
 import os
 from datetime import datetime, date

@@ -2,8 +2,9 @@ def main():
     import os
     import re
     import time
-    import pymysql
     import pdfkit
+    import psycopg2
+    import psycopg2.extras
     from datetime import datetime
     from bs4 import BeautifulSoup
     from selenium import webdriver
@@ -12,12 +13,14 @@ def main():
     from selenium.webdriver.chrome.options import Options
     from webdriver_manager.chrome import ChromeDriverManager
 
-    conn = pymysql.connect(
-        host="localhost",
-        user="root",
-        password="@datasolution",
-        db="bank",
-        charset="utf8mb4"
+    conn = psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZCsSRVPjiS5RDZWqalBG",
+        port=5432,
+        sslmode="require",
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
     cursor = conn.cursor()
 

@@ -1,7 +1,6 @@
 import os
 import time
 import shutil
-import pymysql
 import pdfkit
 import re
 import requests

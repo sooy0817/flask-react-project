@@ -1,4 +1,3 @@
-import pymysql
 import json
 from extract_date import extract_end_date_from_summary
 import psycopg2

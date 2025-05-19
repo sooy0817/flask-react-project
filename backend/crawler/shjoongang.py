@@ -3,7 +3,6 @@ bank_name = "수협중앙회"
 def main():
     import requests
     from bs4 import BeautifulSoup
-    import pymysql
     import re
     import os
     from datetime import datetime

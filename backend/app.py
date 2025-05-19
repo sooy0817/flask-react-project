@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
-import pymysql
 import json
 import os
 from datetime import datetime, date
@@ -70,7 +69,7 @@ def get_connection():
         user="dsuser",
         password="ucjTeuup7FY6ZCsSRVPjiS5RDZWqalBG",
         port=5432,
-        sslmode="require",  # ✅ 반드시 추가
+        sslmode="require",
         cursor_factory=psycopg2.extras.RealDictCursor
     )
 @app.route("/api/all-banks", methods=["GET"])
