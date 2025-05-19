@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBankLogo } from "../utils/getBankLogo";
-import { FaChevronLeft, FaChevronRight, FaUserCircle, FaStar, FaRegCalendarAlt } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaStar, FaRegCalendarAlt } from "react-icons/fa";
 
 function ListPage() {
   const [data, setData] = useState<any[]>([]);
@@ -16,6 +16,8 @@ function ListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const navigate = useNavigate();
+
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const filteredData = data.filter((item) => {
     const matchKeyword = item.title.includes(searchKeyword);
@@ -33,12 +35,12 @@ function ListPage() {
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   useEffect(() => {
-    fetch("http://localhost:5001/api/all-banks")
+   fetch(`${API_URL}/api/all-banks`)
       .then((res) => res.json())
       .then((json) => setData(json))
       .catch((err) => console.error("Error fetching data:", err));
 
-    fetch("http://localhost:5001/api/scrap")
+   fetch(`${API_URL}/api/scrap`)
       .then((res) => res.json())
       .then((json) => setScrappedArtIds(json.artids))
       .catch((err) => console.error("스크랩 상태 가져오기 실패", err));
@@ -52,10 +54,10 @@ function ListPage() {
     if (isCrawling) return;
     setIsCrawling(true);
     try {
-      const res = await fetch("http://localhost:5001/api/run-crawler", { method: "POST" });
+      const res = await fetch(`${API_URL}/api/run-crawler`, { method: "POST" });
       const result = await res.json();
       alert(result.message);
-      const refreshed = await fetch("http://localhost:5001/api/all-banks");
+     const refreshed = await fetch(`${API_URL}/api/all-banks`);
       const json = await refreshed.json();
       setData(json);
     } catch (err) {
@@ -64,10 +66,8 @@ function ListPage() {
       setIsCrawling(false);
     }
   };
-
-  const handleScrapConfirm = async () => {
+const handleScrapConfirm = async () => {
   try {
-    // 1. 저장할 전체 item 목록 구성 (selectedArtIds를 기반으로)
     const scrapItems = data
       .filter((item) => selectedArtIds.includes(item.artid))
       .map((item) => ({
@@ -78,30 +78,27 @@ function ListPage() {
         content_path: item.content_path,
       }));
 
-    // 2. 서버에 스크랩 저장 요청
-    await fetch("http://localhost:5001/api/scrap", {
+    await fetch(`${API_URL}/api/scrap`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: scrapItems })
     });
 
-    // 3. 체크 해제된 항목 삭제
     const toDelete = scrappedArtIds.filter(id => !selectedArtIds.includes(id));
     if (toDelete.length > 0) {
-      await fetch("http://localhost:5001/api/scrap/delete", {
+      await fetch(`${API_URL}/api/scrap/delete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ artids: toDelete })
       });
     }
 
-    // 4. UI 상태 반영
     setScrappedArtIds(selectedArtIds);
     setSelectedArtIds([]);
     setSelectMode(false);
   } catch (err) {
     alert("스크랩 저장/삭제 실패");
-    console.error(err); // 에러 로그도 확인
+    console.error(err);
   }
 };
 

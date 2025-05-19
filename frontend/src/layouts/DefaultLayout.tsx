@@ -1,4 +1,3 @@
-import React from "react";
 import Sidebar from "../components/Sidebar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { FaHome } from "react-icons/fa";

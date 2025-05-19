@@ -1,5 +1,4 @@
-// ✅ DetailPage.tsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import { getBankLogo } from "../utils/getBankLogo";

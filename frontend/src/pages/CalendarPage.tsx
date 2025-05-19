@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Calendar, dateFnsLocalizer,View } from "react-big-calendar";
-import format from "date-fns/format";
-import parse from "date-fns/parse";
-import startOfWeek from "date-fns/startOfWeek";
-import getDay from "date-fns/getDay";
+import { useEffect, useState, useRef } from "react";
+import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import { format } from "date-fns/format";
+import { parse } from "date-fns/parse";
+import { startOfWeek } from "date-fns/startOfWeek";
+import { getDay } from "date-fns/getDay";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useNavigate } from "react-router-dom";
-import koLocale from "date-fns/locale/ko";
+import * as koLocale from "date-fns/locale/ko";
 import { getBankLogo } from "../utils/getBankLogo";
 
 const locales = {
@@ -149,7 +149,7 @@ const EventComponent = ({ event }: any) => {
     grouped[dateKey].push(event);
   });
 
-  const processed = Object.entries(grouped).map(([dateKey, eventList]) => {
+  const processed = Object.entries(grouped).map(([_, eventList]) => {
     const first = eventList[0];
     const extraCount = eventList.length - 1;
 
@@ -203,7 +203,7 @@ const EventComponent = ({ event }: any) => {
               views={["month"]}
               selectable
               onSelectSlot={onSelectDate}
-                onSelectEvent={(event) => {
+                onSelectEvent={(event : any) => {
     setSelectedDateEvents(event._fullGroup || [event]);
   }}
               onNavigate={(newDate) => {

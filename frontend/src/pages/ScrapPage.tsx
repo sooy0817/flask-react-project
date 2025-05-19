@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getBankLogo } from "../utils/getBankLogo";
 
@@ -31,7 +31,6 @@ const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
       return;
     }
 
-    const result = await res.json();
 
     // 성공하면 프론트 목록도 갱신
     const remaining = scrapLists.filter(item => !selectedItems.has(item.artid));
