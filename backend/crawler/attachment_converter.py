@@ -2,19 +2,17 @@ import os
 import re
 import pythoncom
 import win32com.client
-import pymysql
+import psycopg2
+import psycopg2.extras
 
 def sanitize_filename(filename):
-    """
-    Windows에서 사용할 수 없는 문자 제거: \ / : * ? " < > | #
-    """
     return re.sub(r'[\\/:*?"<>|#]', '_', filename)
 
 def convert_and_update_attachments(download_dir, pdf_output_dir, db_config):
     os.makedirs(pdf_output_dir, exist_ok=True)
 
     # DB 연결
-    conn = pymysql.connect(**db_config)
+    conn = psycopg2.connect(**db_config, cursor_factory=psycopg2.extras.RealDictCursor)
     cursor = conn.cursor()
 
     # 📄 HWP → PDF
@@ -39,15 +37,12 @@ def convert_and_update_attachments(download_dir, pdf_output_dir, db_config):
         file_base, ext = os.path.splitext(file_name)
         ext = ext.lower()
 
-        # 파일 이름에 포함된 artid 추출
         artid_match = re.search(r'(\d+)', file_name)
         if not artid_match:
             print(f"⛔ artid 못 찾음: {file_name}")
             continue
 
         artid = artid_match.group(1)
-
-        # 🔒 안전한 PDF 파일 이름 생성
         safe_file_base = sanitize_filename(file_base)
         pdf_path = os.path.join(pdf_output_dir, safe_file_base + ".pdf")
 
@@ -62,7 +57,7 @@ def convert_and_update_attachments(download_dir, pdf_output_dir, db_config):
                 print(f"❌ 지원하지 않는 형식: {file_name}")
                 continue
 
-            # DB에 PDF 경로 저장
+            # PostgreSQL용 UPDATE
             cursor.execute(
                 """
                 UPDATE woori_attachments
@@ -89,11 +84,11 @@ if __name__ == "__main__":
     pdf_output_dir = os.path.join(base_dir, "woori_attachment_pdf")
 
     db_config = {
-        "host": "localhost",
-        "user": "root",
-        "password": "@datasolution",
-        "db": "bank",
-        "charset": "utf8mb4"
+        "host": "dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        "port": 5432,
+        "dbname": "bank_mgh0",
+        "user": "dsuser",
+        "password": "ucjTeuup7FY6ZcsSRVPji5S8RDZWqalBG"
     }
 
     convert_and_update_attachments(download_dir, pdf_output_dir, db_config)

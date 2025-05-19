@@ -45,8 +45,10 @@ const detailSectionRef = useRef<HTMLDivElement | null>(null);
 
 
 useEffect(() => {
-  // 스크랩된 이벤트
-  fetch("http://localhost:5001/api/scrap/details")
+   const API_URL = import.meta.env.VITE_API_URL;
+
+  // 스크랩된 이벤트 가져오기
+  fetch(`${API_URL}/api/scrap/details`)
     .then((res) => res.json())
     .then((res) => {
       const formatted = (res.data || []).map((item: any) => ({
@@ -61,8 +63,7 @@ useEffect(() => {
       setScrapEvents(formatted);
     });
 
-  // 전체 마감 일정
- fetch("http://localhost:5001/api/all/details")
+ fetch(`${API_URL}/api/all/details`)
   .then((res) => res.json())
   .then((res) => {
     const formatted = (res.data || [])

@@ -1,6 +1,19 @@
+import os
+import time
+import re
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import UnexpectedAlertPresentException, NoAlertPresentException
+import psycopg2
+import psycopg2.extras
+
+
 def wait_for_download_complete(directory, timeout=20):
-    import time
-    import os
     start_time = time.time()
     while time.time() - start_time < timeout:
         downloading = [f for f in os.listdir(directory) if f.endswith(".crdownload")]
@@ -11,30 +24,20 @@ def wait_for_download_complete(directory, timeout=20):
 
 
 def main():
-    import os
-    import time
-    import re
-    import pymysql
-    from bs4 import BeautifulSoup
-    from selenium import webdriver
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.chrome.service import Service
-    from selenium.webdriver.chrome.options import Options
-    from webdriver_manager.chrome import ChromeDriverManager
-    from selenium.common.exceptions import UnexpectedAlertPresentException, NoAlertPresentException
-
     base_dir = os.path.abspath(os.path.dirname(__file__))
     download_dir = os.path.join(base_dir, "kb_downloads")
     pdf_dir = os.path.join(base_dir, "kb_pdfs")
     os.makedirs(download_dir, exist_ok=True)
     os.makedirs(pdf_dir, exist_ok=True)
 
-    conn = pymysql.connect(
-        host="localhost",
-        user="root",
-        password="@datasolution",
-        db="bank",
-        charset="utf8mb4"
+    conn = psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZCsSRVPjiS5RDZWqalBG",
+        port=5432,
+        sslmode="require",
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
     cursor = conn.cursor()
 
@@ -72,8 +75,8 @@ def main():
 
         cursor.execute("SELECT 1 FROM kb_items WHERE artid = %s", (artid,))
         if cursor.fetchone():
-            print(f"이미 존재하는 artid {artid}, 크롤링 중단")
-            break
+            print(f"이미 존재하는 artid {artid}, 스킵")
+            continue  # ✅ break → continue
 
         try:
             detail_url = f"https://omoney.kbstar.com/{href}"
@@ -83,8 +86,6 @@ def main():
             attachments = []
             content_path = None
             has_successful_download = False
-
-
 
             attachment_links = driver.find_elements(By.CSS_SELECTOR, "dd.upfile li a")
             print(f"[INFO] 첨부파일 {len(attachment_links)}개 발견")
@@ -109,17 +110,20 @@ def main():
                         continue
 
                     downloaded_file = new_files[0]
+                    downloaded_path = os.path.join(download_dir, downloaded_file)
+                    pdf_path = os.path.join(pdf_dir, downloaded_file)
+
+                    # ✅ 파일이 이미 존재하면 삭제
+                    if os.path.exists(pdf_path):
+                        os.remove(pdf_path)
+
+                    os.rename(downloaded_path, pdf_path)
 
                     public_url = f"/files/kb_downloads/{downloaded_file}"
                     print(f"[INFO] 다운로드 성공: {public_url}")
 
                     if content_path is None:
-                        # PDF 본문은 별도 폴더에 저장
                         content_path = f"/files/kb_pdfs/{downloaded_file}"
-                        os.rename(
-                            os.path.join(download_dir, downloaded_file),
-                            os.path.join(pdf_dir, downloaded_file)
-                        )
                     else:
                         attachments.append((file_name, public_url))
 
@@ -135,33 +139,45 @@ def main():
                         print(f"[WARN] 알림창 없음")
                     continue
 
-            if has_successful_download and content_path:
-                cursor.execute(
-                    """
-                    INSERT INTO kb_items (artid, title, date, content_path)
-                    VALUES (%s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE title=VALUES(title), date=VALUES(date), content_path=VALUES(content_path)
-                    """,
-                    (artid, title, date_str, content_path)
-                )
+            try:
+                if has_successful_download and content_path:
+                    bank_name = "국민은행"
 
-            for name, path in attachments:
-                cursor.execute(
-                    """
-                    INSERT IGNORE INTO kb_attachments (artid, file_name, file_url)
-                    VALUES (%s, %s, %s)
-                    """,
-                    (artid, name, path)
-                )
+                    cursor.execute(
+                        """
+                        INSERT INTO kb_items (artid, bank, title, date, content_path)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (artid) DO UPDATE SET
+                            bank = EXCLUDED.bank,
+                            title = EXCLUDED.title,
+                            date = EXCLUDED.date,
+                            content_path = EXCLUDED.content_path
+                        """,
+                        (artid, bank_name, title, date_str, content_path)
+                    )
 
-            print(f"[완료] artid {artid} 저장됨")
+                for name, path in attachments:
+                    cursor.execute(
+                        """
+                        INSERT INTO kb_attachments (artid, file_name, file_url)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (artid, file_name) DO NOTHING
+                        """,
+                        (artid, name, path)
+                    )
+
+                conn.commit()
+                print(f"[완료] artid {artid} 저장됨")
+
+            except Exception as db_err:
+                conn.rollback()
+                print(f"[DB ERROR] artid {artid}: {db_err}")
 
         except Exception as e:
             print(f"[오류] artid {artid}: {e}")
             driver.get(url)
             time.sleep(2)
 
-    conn.commit()
     cursor.close()
     conn.close()
     driver.quit()

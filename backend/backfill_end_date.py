@@ -1,15 +1,17 @@
 import pymysql
 import json
 from extract_date import extract_end_date_from_summary
+import psycopg2
+import psycopg2.extras
 
 def get_connection():
-    return pymysql.connect(
-        host='localhost',
-        user='root',
-        password='@datasolution',
-        db='bank',
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
+    return psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZcsSRVPji5S8RDZWqalBG",
+        port=5432,
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
 
 def backfill_end_dates(table_name="summary_cache"):

@@ -1,3 +1,5 @@
+bank_name = "수협중앙회"
+
 def main():
     import requests
     from bs4 import BeautifulSoup
@@ -13,16 +15,21 @@ def main():
     from webdriver_manager.chrome import ChromeDriverManager
     import time
 
+    import psycopg2
+    import psycopg2.extras
+
     # ====== wkhtmltopdf 경로 명시 ======
     PDFKIT_CONFIG = pdfkit.configuration(wkhtmltopdf=r"C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe")
 
-    # ====== DB 연결 ======
-    conn = pymysql.connect(
-        host="localhost",
-        user="root",
-        password="@datasolution",
-        db="bank",
-        charset="utf8mb4"
+
+    conn = psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZCsSRVPjiS5RDZWqalBG",
+        port=5432,
+        sslmode="require",
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
     cursor = conn.cursor()
 
@@ -109,11 +116,13 @@ def main():
 
                     cursor.execute(
                         """
-                        INSERT IGNORE INTO shjoongang_attachments (artid, file_name, file_url)
+                        INSERT INTO shjoongang_attachments (artid, file_name, file_url)
                         VALUES (%s, %s, %s)
+                        ON CONFLICT (artid, file_name) DO NOTHING
                         """,
                         (artid, file_name, public_path)
                     )
+
                     print(f"첨부파일 저장 완료: {file_name}")
 
                 except Exception as e:
@@ -159,11 +168,23 @@ def main():
             pdf_public_path = f"/files/shjoongang_pdfs/{pdf_filename}"
 
             sql = """
-                INSERT INTO shjoongang_items (artid, title, date, content_path)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE title=VALUES(title), date=VALUES(date), content_path=VALUES(content_path)
+                INSERT INTO shjoongang_items (artid, bank, title, date, content_path)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (artid) DO UPDATE SET
+                    bank = EXCLUDED.bank,
+                    title = EXCLUDED.title,
+                    date = EXCLUDED.date,
+                    content_path = EXCLUDED.content_path
             """
-            cursor.execute(sql, (artid, title, date, pdf_public_path))
+
+            try:
+                cursor.execute(sql, (artid, bank_name, title, date, pdf_public_path))
+                print(f"✅ PDF 저장 완료: {artid} → {pdf_public_path}")
+            except Exception as e:
+                print(f"❌ DB INSERT 실패 - artid {artid}: {e}")
+                conn.rollback()
+                continue
+
             print(f"PDF 저장 완료: {artid} → {pdf_public_path}")
 
         except Exception as e:

@@ -20,6 +20,8 @@ from langchain_community.document_loaders import UnstructuredExcelLoader, PyPDFL
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
+import psycopg2
+import psycopg2.extras
 
 load_dotenv()
 
@@ -61,17 +63,16 @@ def run_crawler():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# DB 연결 함수
-def get_connection():
-    return pymysql.connect(
-        host='localhost',
-        user='root',
-        password='@datasolution',
-        db='bank',
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
-    )
 
+def get_connection():
+    return psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZcsSRVPji5S8RDZWqalBG",
+        port=5432,
+        cursor_factory=psycopg2.extras.RealDictCursor
+    )
 @app.route("/api/all-banks", methods=["GET"])
 def get_all_banks():
     conn = get_connection()

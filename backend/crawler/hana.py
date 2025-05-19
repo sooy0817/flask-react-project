@@ -14,6 +14,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+import psycopg2
+import psycopg2.extras
 
 def main():
     base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -33,9 +35,19 @@ def main():
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     # DB 연결
-    conn = pymysql.connect(
-        host="localhost", user="root", password="@datasolution",
-        db="bank", charset="utf8mb4"
+    # conn = pymysql.connect(
+    #     host="localhost", user="root", password="@datasolution",
+    #     db="bank", charset="utf8mb4"
+    # )
+
+    conn = psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZCsSRVPjiS5RDZWqalBG",
+        port=5432,
+        sslmode="require",
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
     cursor = conn.cursor()
 
@@ -86,11 +98,17 @@ def main():
         pdfkit.from_file(html_path, pdf_path, configuration=config)
         public_pdf_path = f"/files/hana_pdfs/{pdf_name}"
 
-        # ✅ DB 저장
+        bank_name = "하나은행"
+
         cursor.execute("""
-            INSERT INTO hana_items (artid, title, date, content_path)
-            VALUES (%s, %s, %s, %s)
-        """, (artid, title, date_str, public_pdf_path))
+            INSERT INTO hana_items (artid, bank, title, date, content_path)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (artid) DO UPDATE SET
+                bank = EXCLUDED.bank,
+                title = EXCLUDED.title,
+                date = EXCLUDED.date,
+                content_path = EXCLUDED.content_path
+        """, (artid, bank_name, title, date_str, public_pdf_path))
 
         # 📎 첨부파일 다운로드 (href 직접 다운로드 방식)
         attachment_elements = driver.find_elements(By.CSS_SELECTOR, "a.btnBox.pdf")
@@ -113,9 +131,11 @@ def main():
 
                 public_url = f"/files/hana_attachment_downloads/{os.path.basename(dst)}"
                 cursor.execute("""
-                    INSERT IGNORE INTO hana_attachments (artid, file_name, file_url)
+                    INSERT INTO hana_attachments (artid, file_name, file_url)
                     VALUES (%s, %s, %s)
+                    ON CONFLICT (artid, file_name) DO NOTHING
                 """, (artid, filename, public_url))
+
 
             except Exception as e:
                 print(f"❌ 다운로드 실패: {filename} - {e}")

@@ -12,13 +12,16 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
-# DB 연결
-conn = pymysql.connect(
-    host="localhost",
-    user='root',
-    password='@datasolution',
-    db='bank',
-    charset='utf8mb4'
+import psycopg2
+import psycopg2.extras
+
+conn = psycopg2.connect(
+    host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+    dbname="bank_mgh0",
+    user="dsuser",
+    password="ucjTeuup7FY6ZcsSRVPji5S8RDZWqalBG",
+    port=5432,
+    cursor_factory=psycopg2.extras.RealDictCursor
 )
 cursor = conn.cursor()
 

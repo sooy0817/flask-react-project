@@ -121,18 +121,23 @@ def main():
             config = pdfkit.configuration(wkhtmltopdf=r"C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe")
             pdfkit.from_file(html_path, pdf_path, configuration=config)
 
-            # ✅ 상대 경로를 웹에서 접근 가능한 형식으로 변환
+
             rel_path = os.path.relpath(pdf_path, base_dir).replace("\\", "/")
             web_path = f"/files/{rel_path}"
 
-            # DB 저장
+            bank_name = "우리은행"
+
             cursor.execute(
                 """
-                INSERT INTO woori_items (artid, title, date, content_path)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE title=VALUES(title), date=VALUES(date), content_path=VALUES(content_path)
+                INSERT INTO woori_items (artid, bank, title, date, content_path)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (artid) DO UPDATE SET
+                    bank = EXCLUDED.bank,
+                    title = EXCLUDED.title,
+                    date = EXCLUDED.date,
+                    content_path = EXCLUDED.content_path
                 """,
-                (artid, title, date_str, web_path)
+                (artid, bank_name, title, date_str, web_path)
             )
 
             print(f"저장 완료: {artid}")

@@ -118,12 +118,19 @@ def main():
             # 웹에서 접근 가능한 경로로 변환하여 저장
             rel_pdf_path = f"/files/suhyup_pdfs/{pdf_filename}"
 
+            bank_name = "수협은행"
+
             sql = """
-                INSERT INTO suhyup_items (artid, title, date, content_path)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE title=VALUES(title), date=VALUES(date), content_path=VALUES(content_path)
+                INSERT INTO suhyup_items (artid, bank, title, date, content_path)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (artid) DO UPDATE SET
+                    bank = EXCLUDED.bank,
+                    title = EXCLUDED.title,
+                    date = EXCLUDED.date,
+                    content_path = EXCLUDED.content_path
             """
-            cursor.execute(sql, (artid, title, date, rel_pdf_path))
+            cursor.execute(sql, (artid, bank_name, title, date, rel_pdf_path))
+
             print(f"저장 완료: {artid} → {pdf_path}")
 
             attachment_section = detail_soup.select("div.textArea")[1]

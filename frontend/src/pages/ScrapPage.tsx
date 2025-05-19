@@ -18,13 +18,14 @@ function ScrapPage() {
 const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const handleConfirmSelection = async () => {
   const toDelete = Array.from(selectedItems);
+const API_URL = import.meta.env.VITE_API_URL;
 
-  try {
-    const res = await fetch("http://localhost:5001/api/scrap/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ artids: toDelete }),
-    });
+try {
+  const res = await fetch(`${API_URL}/api/scrap/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ artids: toDelete }),
+  });
 
     if (!res.ok) {
       alert("삭제에 실패했습니다.");
@@ -63,7 +64,8 @@ today.setHours(0, 0, 0, 0);
     d1.getDate() === d2.getDate();
 
   useEffect(() => {
-    fetch("http://localhost:5001/api/scrap/details")
+      const API_URL = import.meta.env.VITE_API_URL;
+    fetch(`${API_URL}/api/scrap/details`)
       .then((res) => res.json())
       .then((res) => {
         const formatted = (res.data || []).map((item: any) => ({

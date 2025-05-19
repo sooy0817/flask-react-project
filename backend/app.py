@@ -18,6 +18,8 @@ from langchain_ollama import OllamaLLM
 import logging
 
 from extract_date import extract_end_date_from_summary
+import psycopg2
+import psycopg2.extras
 
 
 load_dotenv()
@@ -61,17 +63,16 @@ def run_crawler():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-# DB 연결 함수
 def get_connection():
-    return pymysql.connect(
-        host='localhost',
-        user='root',
-        password='@datasolution',
-        db='bank',
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
+    return psycopg2.connect(
+        host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
+        dbname="bank_mgh0",
+        user="dsuser",
+        password="ucjTeuup7FY6ZCsSRVPjiS5RDZWqalBG",
+        port=5432,
+        sslmode="require",  # ✅ 반드시 추가
+        cursor_factory=psycopg2.extras.RealDictCursor
     )
-
 @app.route("/api/all-banks", methods=["GET"])
 def get_all_banks():
     conn = get_connection()

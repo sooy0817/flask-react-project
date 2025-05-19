@@ -12,11 +12,12 @@ function DetailPage() {
   const [summaryText, setSummaryText] = useState<any | null>(null);
   const [loadingType, setLoadingType] = useState<"llm" | "db" | null>(null);
   const [summaryType, setSummaryType] = useState<"openai" | "ollama" | "gemma3" | "llama3">("openai");
+  const API_URL = import.meta.env.VITE_API_URL;
 
 
   useEffect(() => {
     if (!state && artid) {
-      fetch("http://localhost:5001/api/all-banks")
+      fetch(`${API_URL}/api/all-banks`)
         .then((res) => res.json())
         .then((list) => {
           const match = list.find((item: any) => String(item.artid) === String(artid));
@@ -31,7 +32,7 @@ function DetailPage() {
       const endpoint = "/api/summary";
       setLoadingType(selectedItem.summary ? "db" : "llm");
 
-      fetch(`http://localhost:5001${endpoint}`, {
+      fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,7 +90,7 @@ function DetailPage() {
             {selectedItem.attachments.map((file: any, idx: number) => (
               <li key={idx} style={{ marginBottom: "4px" }}>
                 <a
-                  href={`http://localhost:5001${file.file_url}`}
+                  href={`${API_URL}${file.file_url}`}
                   download
                   target="_blank"
                   rel="noreferrer"
@@ -170,7 +171,7 @@ function DetailPage() {
               boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
             }}>
             <iframe
-              src={`http://localhost:5001${selectedItem.content_path}#zoom=120`}
+              src={`${API_URL}${selectedItem.content_path}#zoom=120`}
               style={{ width: "100%", height: "80vh", border: "none" }}
               title="PDF 미리보기"
             />
