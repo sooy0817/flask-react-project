@@ -33,11 +33,6 @@ def main():
     options.add_argument("--headless=new")
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-    # DB 연결
-    # conn = pymysql.connect(
-    #     host="localhost", user="root", password="@datasolution",
-    #     db="bank", charset="utf8mb4"
-    # )
 
     conn = psycopg2.connect(
         host="dpg-d0lbspje5dus73ceh1lg-a.oregon-postgres.render.com",
