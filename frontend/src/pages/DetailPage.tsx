@@ -7,16 +7,16 @@ function DetailPage() {
   const { state } = useLocation();
   const { artid } = useParams();
   const navigate = useNavigate();
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const [selectedItem, setSelectedItem] = useState<any>(state || null);
   const [summaryText, setSummaryText] = useState<any | null>(null);
   const [loadingType, setLoadingType] = useState<"llm" | "db" | null>(null);
   const [summaryType, setSummaryType] = useState<"openai" | "ollama" | "gemma3" | "llama3">("openai");
-  const API_URL = import.meta.env.VITE_API_URL;
 
-
+  // state가 없을 경우 artid 기반으로 fetch
   useEffect(() => {
-    if (!state && artid) {
+    if (!selectedItem && artid) {
       fetch(`${API_URL}/api/all-banks`)
         .then((res) => res.json())
         .then((list) => {
@@ -25,12 +25,13 @@ function DetailPage() {
         })
         .catch((err) => console.error("데이터 로딩 실패:", err));
     }
-  }, [state, artid]);
+  }, [state, artid, selectedItem]);
 
+  // 요약 데이터 요청
   useEffect(() => {
     if (selectedItem) {
       const endpoint = "/api/summary";
-      setLoadingType(selectedItem.summary ? "db" : "llm");
+      setLoadingType("db");
 
       fetch(`${API_URL}${endpoint}`, {
         method: "POST",
@@ -40,7 +41,7 @@ function DetailPage() {
           title: selectedItem.title,
           content_path: selectedItem.content_path,
           attachments: selectedItem.attachments,
-          use_ollama: summaryType === "ollama" || summaryType === "gemma3" || summaryType === "llama3",
+          use_ollama: ["ollama", "gemma3", "llama3"].includes(summaryType),
           cache_table:
             summaryType === "gemma3"
               ? "summary_cache_gemma3"
@@ -67,11 +68,12 @@ function DetailPage() {
     }
   }, [selectedItem, summaryType]);
 
-  if (!selectedItem) return <div style={{ padding: "40px" }}>불러오는 중...</div>;
+  if (!selectedItem) {
+    return <div style={{ padding: "40px", textAlign: "center" }}>📡 데이터를 불러오는 중입니다...</div>;
+  }
 
   return (
-    <div
-      style={{ padding: "40px", fontFamily: "Segoe UI, sans-serif", backgroundColor: "#f9f9f9", minHeight: "100vh" }}>
+    <div style={{ padding: "40px", fontFamily: "Segoe UI, sans-serif", backgroundColor: "#f9f9f9", minHeight: "100vh" }}>
       <div className="header-container">
         <div className="header-container-left">
           <img src={getBankLogo(selectedItem.bank)} alt={`${selectedItem.bank} 로고`} />
@@ -103,7 +105,7 @@ function DetailPage() {
         </div>
       )}
 
-      {/* 요약 + PDF */}
+      {/* 요약 및 PDF */}
       <div style={{ marginBottom: "20px" }}>
         <button onClick={() => setSummaryType("openai")}>🤖 OpenAI 요약</button>
         <button onClick={() => setSummaryType("ollama")}>🦙 Ollama - gemma2-2b 요약</button>
@@ -112,7 +114,7 @@ function DetailPage() {
       </div>
 
       <div style={{ display: "flex", gap: "24px" }}>
-        {/* 요약 영역 */}
+        {/* 요약 결과 */}
         <div
           style={{
             flex: 1,
@@ -158,10 +160,12 @@ function DetailPage() {
                 ))}
               </tbody>
             </table>
+          ) : summaryText?.error ? (
+            <p style={{ color: "red" }}>❌ 요약 불러오기 실패</p>
           ) : null}
         </div>
 
-        {/* PDF 미리보기 영역 */}
+        {/* PDF 미리보기 */}
         {selectedItem?.content_path && (
           <div
             style={{

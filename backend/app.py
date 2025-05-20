@@ -15,16 +15,17 @@ from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain_ollama import OllamaLLM
 import logging
-
 from extract_date import extract_end_date_from_summary
 import psycopg2
 import psycopg2.extras
 
 
-load_dotenv()
+load_dotenv(override=True)
 
 
 os.environ["LANGCHAIN_TRACING_V2"] = "false"
+print("📁 현재 실행 디렉토리:", os.getcwd())
+print("🔑 현재 OpenAI API 키:", os.getenv("OPENAI_API_KEY"))
 
 app = Flask(__name__)
 CORS(app)  # React에서 호출 가능하게 CORS 허용
@@ -338,21 +339,29 @@ def summarize():
     except json.JSONDecodeError:
         summary_json = {"title": title, "summary": [{"항목": "요약", "내용": summary_text}]}
 
-    cursor.execute(
-        f"REPLACE INTO {cache_table} (artid, summary_json) VALUES (%s, %s)",
-        (artid, json.dumps(summary_json, ensure_ascii=False))
-    )
-
     end_date = extract_end_date_from_summary(summary_json)
 
-    cursor.execute(
-        f"""
-        REPLACE INTO {cache_table} (artid, summary_json{', end_date' if end_date else ''})
-        VALUES (%s, %s{', %s' if end_date else ''})
-        """,
-        (artid, json.dumps(summary_json, ensure_ascii=False), end_date) if end_date else (
-        artid, json.dumps(summary_json, ensure_ascii=False))
-    )
+    if end_date:
+        cursor.execute(
+            f"""
+            INSERT INTO {cache_table} (artid, summary_json, end_date)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (artid) DO UPDATE 
+            SET summary_json = EXCLUDED.summary_json,
+                end_date = EXCLUDED.end_date
+            """,
+            (artid, json.dumps(summary_json, ensure_ascii=False), end_date)
+        )
+    else:
+        cursor.execute(
+            f"""
+            INSERT INTO {cache_table} (artid, summary_json)
+            VALUES (%s, %s)
+            ON CONFLICT (artid) DO UPDATE 
+            SET summary_json = EXCLUDED.summary_json
+            """,
+            (artid, json.dumps(summary_json, ensure_ascii=False))
+        )
 
     conn.commit()
     cursor.close()
@@ -380,7 +389,15 @@ def handle_scrap():
             post_date = item['date']
             content_path = item.get("content_path", "")
             cursor.execute(
-                "REPLACE INTO scrapped_items (artid, title, bank, date ,content_path) VALUES (%s, %s, %s, %s, %s)",
+                """
+                INSERT INTO scrapped_items (artid, title, bank, date, content_path)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (artid) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    bank = EXCLUDED.bank,
+                    date = EXCLUDED.date,
+                    content_path = EXCLUDED.content_path
+                """,
                 (artid, title, bank, post_date, content_path)
             )
 
