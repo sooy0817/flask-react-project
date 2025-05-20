@@ -24,9 +24,6 @@ load_dotenv(override=True)
 
 
 os.environ["LANGCHAIN_TRACING_V2"] = "false"
-print("📁 현재 실행 디렉토리:", os.getcwd())
-print("🔑 현재 OpenAI API 키:", os.getenv("OPENAI_API_KEY"))
-
 app = Flask(__name__)
 CORS(app)  # React에서 호출 가능하게 CORS 허용
 
