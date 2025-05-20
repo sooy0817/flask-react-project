@@ -99,7 +99,7 @@ def main():
                         """
                         INSERT INTO woori_attachments (artid, file_name, file_url)
                         VALUES (%s, %s, %s)
-                        ON DUPLICATE KEY UPDATE file_url = VALUES(file_url)
+                        ON CONFLICT (artid, file_name) DO UPDATE SET file_url = EXCLUDED.file_url
                         """,
                         (artid, file_name, file_url)
                     )
