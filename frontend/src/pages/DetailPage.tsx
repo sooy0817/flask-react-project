@@ -14,7 +14,7 @@ function DetailPage() {
   const [loadingType, setLoadingType] = useState<"llm" | "db" | null>(null);
   const [summaryType, setSummaryType] = useState<"openai" | "ollama" | "gemma3" | "llama3">("openai");
   const [similarCount, setSimilarCount] = useState(0);
-  const [faissResults, setFaissResults] = useState<any[]>([]);
+  const [, setFaissResults] = useState<any[]>([]);
 
   // state가 없을 경우 artid 기반으로 fetch
   useEffect(() => {
@@ -85,7 +85,7 @@ useEffect(() => {
       .then((res) => res.json())
       .then((data) => {
         console.log("✅ /api/similar-faiss 응답 데이터:", data);
-        const filtered = (data.results || []).filter(item => item.similarity >= 0.75);
+        const filtered = (data.results || []).filter((item: any) => item.similarity >= 0.75);
         console.log("✅ 유사도 0.75 이상인 데이터:", filtered);
         setFaissResults(filtered);  // 결과 저장
         setSimilarCount(filtered.length);

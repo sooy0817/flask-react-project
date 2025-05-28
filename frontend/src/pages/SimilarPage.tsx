@@ -119,7 +119,7 @@ function SimilarPage() {
                   zIndex: 2
                 }}>기준 공고
                 </th>
-                {similarList.map((item, idx) => (
+                {similarList.map((_, idx) => (
                     <th key={idx} style={{padding: "12px", border: "1px solid #ddd"}}>유사공고 {idx + 1}</th>
                 ))}
               </tr>
