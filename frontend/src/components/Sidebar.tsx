@@ -32,6 +32,9 @@ const Sidebar = () => {
       <Link to="/scrap" style={menuStyle("/scrap")}>
         ⭐ 스크랩 공고
       </Link>
+        <Link to="/past-similar" style={menuStyle("/similar")}>
+        ⭐ 유사 공고
+      </Link>
     </div>
   );
 };

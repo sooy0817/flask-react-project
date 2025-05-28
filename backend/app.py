@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, send_from_directory, request
+from flask import send_from_directory
 from flask_cors import CORS
 import json
 import os
@@ -18,6 +18,7 @@ import logging
 from extract_date import extract_end_date_from_summary
 import psycopg2
 import psycopg2.extras
+from flask import Flask, request, jsonify
 
 
 load_dotenv(override=True)
@@ -27,6 +28,8 @@ os.environ["LANGCHAIN_TRACING_V2"] = "false"
 app = Flask(__name__)
 CORS(app)  # React에서 호출 가능하게 CORS 허용
 
+
+
 summary_prompt = PromptTemplate.from_template("""
 다음 입찰공고 문서를 읽고 입찰과 관련된 핵심 정보를 요약해서 JSON 형태로 반환해줘. 반드시 한국어로 작성하고, 항목은 상황에 맞게 유동적으로 구성해도 좋아.
 요약 시에는 문서 내용을 왜곡하거나 정보의 변경이 있으면 안돼. 줄글이 아닌 정보전달만 해줘.
@@ -35,7 +38,7 @@ summary_prompt = PromptTemplate.from_template("""
 {{
   "title": "...",
   "summary": [
-    {{ "항목": "사업명", "내용": "..." }},
+    {{ "항목": "사업명"aa, "내용": "..." }},
     {{ "항목": "목적", "내용": "..." }},
     ...
   ]
@@ -472,6 +475,81 @@ def get_all_details():
     return jsonify({"data": rows})
 
 
+@app.route("/api/similar-faiss", methods=["POST"])
+def similar_faiss():
+    from sentence_transformers import SentenceTransformer
+    import faiss, pickle
+
+
+    # 모델 로드
+    model = SentenceTransformer("snunlp/KR-SBERT-V40K-klueNLI-augSTS", device='cpu')
+
+    # 기본값은 backend/faiss_index.idx, 환경 변수 있으면 우선 사용
+    faiss_index_path = os.getenv("FAISS_INDEX_PATH", "backend/faiss_index.idx")
+
+    print(f"FAISS 인덱스 경로: {faiss_index_path}")
+    index = faiss.read_index(faiss_index_path)
+
+    # 요청 데이터
+    data = request.get_json()
+    query_title = data.get("title")
+    if not query_title:
+        return jsonify({"error": "title is required"}), 400
+
+    # 벡터 인코딩 및 FAISS 검색
+    query_vec = model.encode([query_title], normalize_embeddings=True)
+    D, I = index.search(query_vec, 10)
+
+    # 유사도 0.75 이상 필터링
+    results = []
+    for score, idx in zip(D[0], I[0]):
+        if meta["titles"][idx] == query_title:
+            continue
+        similarity = float(score)
+        if similarity >= 0.75:
+            results.append({
+                "artid": meta["ids"][idx],
+                "title": meta["titles"][idx],
+                "similarity": similarity
+            })
+
+    if not results:
+        return jsonify({"results": [], "message": "❌ 유사도 0.75 이상 공고 없음"})
+
+    # DB에서 상세 정보 enrich
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT bid_ntce_no AS artid, bid_ntce_nm AS title, dminstt_nm AS bank, bid_ntce_dt AS date,
+               presmpt_prce AS estimated_price, cntrct_cncls_mthd_nm AS contract_method, bid_methd_nm AS bid_method,
+               bid_ntce_url AS bid_ntce_url
+        FROM tenders
+        WHERE bid_ntce_no = ANY(%s)
+    """, ([r["artid"] for r in results],))
+    db_rows = cursor.fetchall()
+    conn.close()
+
+    # 결과 매칭 및 enrich
+    enriched_results = []
+    for row in db_rows:
+        match = next((r for r in results if r["artid"] == row["artid"]), None)
+        if match:
+            enriched_results.append({
+                "artid": row["artid"],
+                "title": row["title"],
+                "bank": row["bank"],
+                "date": row["date"],
+                "similarity": match["similarity"],
+                "url": row["bid_ntce_url"],
+                "estimated_price": row["estimated_price"],
+                "contract_method": row["contract_method"],
+                "bid_method": row["bid_method"]
+            })
+
+    # 유사도 내림차순 정렬
+    enriched_results.sort(key=lambda x: x["similarity"], reverse=True)
+
+    return jsonify({"results": enriched_results})
 
 
 

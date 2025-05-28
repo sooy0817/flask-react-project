@@ -5,6 +5,7 @@ import DetailPage from "../pages/DetailPage";
 import CalendarPage from "../pages/CalendarPage";
 import ScrapPage from "../pages/ScrapPage";
 import DefaultLayout from "../layouts/DefaultLayout";
+import SimilarPage from "../pages/SimilarPage";
 
 const router = createBrowserRouter([
   {
@@ -26,6 +27,10 @@ const router = createBrowserRouter([
         {
         path: "scrap",
         element: <ScrapPage />,
+      },
+        {
+        path: "past-similar",
+        element: <SimilarPage />,
       },
     ],
   },

@@ -13,6 +13,8 @@ function DetailPage() {
   const [summaryText, setSummaryText] = useState<any | null>(null);
   const [loadingType, setLoadingType] = useState<"llm" | "db" | null>(null);
   const [summaryType, setSummaryType] = useState<"openai" | "ollama" | "gemma3" | "llama3">("openai");
+  const [similarCount, setSimilarCount] = useState(0);
+  const [faissResults, setFaissResults] = useState<any[]>([]);
 
   // state가 없을 경우 artid 기반으로 fetch
   useEffect(() => {
@@ -72,6 +74,30 @@ function DetailPage() {
     return <div style={{ padding: "40px", textAlign: "center" }}>📡 데이터를 불러오는 중입니다...</div>;
   }
 
+ // similar-faiss API 호출
+useEffect(() => {
+  if (selectedItem) {
+    fetch(`${API_URL}/api/similar-faiss`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: selectedItem.title })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("✅ /api/similar-faiss 응답 데이터:", data);
+        const filtered = (data.results || []).filter(item => item.similarity >= 0.75);
+        console.log("✅ 유사도 0.75 이상인 데이터:", filtered);
+        setFaissResults(filtered);  // 결과 저장
+        setSimilarCount(filtered.length);
+      })
+      .catch((err) => {
+        console.error("유사공고 점검 실패:", err);
+        setFaissResults([]);
+        setSimilarCount(0);
+      });
+  }
+}, [selectedItem]);
+
   return (
     <div style={{ padding: "40px", fontFamily: "Segoe UI, sans-serif", backgroundColor: "#f9f9f9", minHeight: "100vh" }}>
       <div className="header-container">
@@ -106,52 +132,93 @@ function DetailPage() {
       )}
 
       {/* 요약 및 PDF */}
-      <div style={{ marginBottom: "20px" }}>
-        <button onClick={() => setSummaryType("openai")}>🤖 OpenAI 요약</button>
-        <button onClick={() => setSummaryType("ollama")}>🦙 Ollama - gemma2-2b 요약</button>
-        <button onClick={() => setSummaryType("gemma3")}>🧠 Ollama - gemma3 요약</button>
-        <button onClick={() => setSummaryType("llama3")}>🦙 Ollama - llama3.1:8b 요약</button>
-      </div>
-
-      <div style={{ display: "flex", gap: "24px" }}>
-        {/* 요약 결과 */}
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "#ffffff",
-            padding: "20px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-            overflowY: "auto",
-            maxHeight: "80vh",
-          }}>
-          <h4 style={{ marginBottom: "16px", fontSize: "18px", color: "#333" }}>📄 요약 결과</h4>
-
-          {loadingType === "llm" && (
-            <div style={{ textAlign: "center", paddingTop: "20px" }}>
-              <ClipLoader color="#007bff" size={35} />
-              <p style={{ color: "#999", marginTop: "12px" }}>요약중...</p>
+        <div style={{marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+            <div>
+                <button onClick={() => setSummaryType("openai")}>🤖 OpenAI 요약</button>
+                <button onClick={() => setSummaryType("ollama")}>🦙 Ollama - gemma2-2b 요약</button>
+                <button onClick={() => setSummaryType("gemma3")}>🧠 Ollama - gemma3 요약</button>
+                <button onClick={() => setSummaryType("llama3")}>🦙 Ollama - llama3.1:8b 요약</button>
             </div>
-          )}
 
-          {loadingType === "db" && (
-            <div style={{ textAlign: "center", paddingTop: "20px" }}>
-              <p style={{ color: "#999" }}>요약 내용 불러오는 중...</p>
-            </div>
-          )}
-
-          {!loadingType && Array.isArray(summaryText?.summary) ? (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <tbody>
-                {summaryText.summary.map((item: any, idx: number) => (
-                  <tr key={idx}>
-                    <td
-                      style={{
+            <div style={{position: "relative", display: "inline-block", marginTop: "10px"}}>
+                <button
+                    onClick={() => navigate(`/past-similar?artid=${selectedItem.artid}`)}
+                    disabled={similarCount === 0}
+                    style={{
+                        backgroundColor: similarCount > 0 ? "#007bff" : "#e0e0e0",
+                        color: similarCount > 0 ? "#fff" : "#999",
+                        border: "none",
+                        padding: "10px 16px", // 👈 여기 오타 있었음! 16x -> 16px
+                        borderRadius: "20px",
+                        cursor: similarCount > 0 ? "pointer" : "not-allowed",
+                        fontSize: "14px",
                         fontWeight: "bold",
-                        padding: "8px",
-                        borderBottom: "1px solid #e0e0e0",
-                        width: "30%",
-                        verticalAlign: "top",
+                        boxShadow: similarCount > 0 ? "0 4px 8px rgba(0,0,0,0.2)" : "none",
+                        transition: "background-color 0.3s, color 0.3s"
+                    }}
+                >
+                    📚 과거 유사 입찰 보기
+                    {similarCount > 0 && (
+                        <span style={{
+                            position: "absolute",
+                            top: "-8px",
+                            right: "-8px",
+                            background: "red",
+                            color: "white",
+                            borderRadius: "50%",
+                            padding: "3px 3px",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            minWidth: "20px",
+                            textAlign: "center"
+                        }}>
+          {similarCount}
+        </span>
+                    )}
+                </button>
+            </div>
+        </div>
+
+
+        <div style={{display: "flex", gap: "24px"}}>
+            {/* 요약 결과 */}
+            <div
+                style={{
+                    flex: 1,
+                    backgroundColor: "#ffffff",
+                    padding: "20px",
+                    borderRadius: "10px",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                    overflowY: "auto",
+                    maxHeight: "80vh",
+                }}>
+                <h4 style={{marginBottom: "16px", fontSize: "18px", color: "#333"}}>📄 요약 결과</h4>
+
+                {loadingType === "llm" && (
+                    <div style={{textAlign: "center", paddingTop: "20px"}}>
+                        <ClipLoader color="#007bff" size={35}/>
+                        <p style={{color: "#999", marginTop: "12px"}}>요약중...</p>
+                    </div>
+                )}
+
+                {loadingType === "db" && (
+                    <div style={{textAlign: "center", paddingTop: "20px"}}>
+                        <p style={{color: "#999"}}>요약 내용 불러오는 중...</p>
+                    </div>
+                )}
+
+                {!loadingType && Array.isArray(summaryText?.summary) ? (
+                    <table style={{width: "100%", borderCollapse: "collapse"}}>
+                        <tbody>
+                        {summaryText.summary.map((item: any, idx: number) => (
+                            <tr key={idx}>
+                                <td
+                                    style={{
+                                        fontWeight: "bold",
+                                        padding: "8px",
+                                        borderBottom: "1px solid #e0e0e0",
+                                        width: "30%",
+                                        verticalAlign: "top",
                       }}>
                       {item.항목}
                     </td>
