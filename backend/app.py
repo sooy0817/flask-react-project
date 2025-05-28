@@ -54,6 +54,52 @@ summary_prompt = PromptTemplate.from_template("""
 
 
 
+import requests
+import os
+
+def download_faiss_index():
+    FILE_ID = '1jTS2KAaFdJ0Lsl0cKG0X234x-1OGlEJb'
+    DEST_PATH = os.getenv("FAISS_INDEX_PATH", "backend/faiss_index.idx")
+
+    # Render에서 FAISS_INDEX_PATH가 지정된 경우만 다운로드 시도
+    if not os.getenv("FAISS_INDEX_PATH"):
+        print("⚠️ FAISS_INDEX_PATH 환경변수가 없어서 다운로드를 건너뜀 (로컬에서는 다운로드 안 함).")
+        return
+
+    if os.path.exists(DEST_PATH):
+        print(f"✅ {DEST_PATH} 이미 존재 - 다운로드 건너뜀")
+        return
+
+    print(f"⬇️ {DEST_PATH} 다운로드 시작...")
+    url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+    session = requests.Session()
+    response = session.get(url, stream=True)
+    token = get_confirm_token(response)
+    if token:
+        params = {'id': FILE_ID, 'confirm': token}
+        response = session.get(url, params=params, stream=True)
+    save_response_content(response, DEST_PATH)
+    print(f"✅ {DEST_PATH} 다운로드 완료")
+
+def get_confirm_token(response):
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return value
+    return None
+
+def save_response_content(response, destination):
+    CHUNK_SIZE = 32768
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(CHUNK_SIZE):
+            if chunk:
+                f.write(chunk)
+
+
+
+
+
+
+
 
 @app.route("/api/run-crawler", methods=["POST"])
 def run_crawler():
@@ -484,11 +530,9 @@ def similar_faiss():
     # 모델 로드
     model = SentenceTransformer("snunlp/KR-SBERT-V40K-klueNLI-augSTS", device='cpu')
 
-    # 기본값은 backend/faiss_index.idx, 환경 변수 있으면 우선 사용
-    faiss_index_path = os.getenv("FAISS_INDEX_PATH", "backend/faiss_index.idx")
-
-    print(f"FAISS 인덱스 경로: {faiss_index_path}")
-    index = faiss.read_index(faiss_index_path)
+    index = faiss.read_index("faiss_index.idx")
+    with open("faiss_meta.pkl", "rb") as f:
+        meta = pickle.load(f)
 
     # 요청 데이터
     data = request.get_json()
@@ -554,5 +598,7 @@ def similar_faiss():
 
 
 if __name__ == "__main__":
+    download_faiss_index()
     app.run(host="0.0.0.0", port=5001, debug=True)
+
 
